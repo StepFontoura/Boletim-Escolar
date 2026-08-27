@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Portal do Aluno - Boletim & Auditoria Multidisciplinar</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    @media print {
+      .no-print { display: none !important; }
+      body { background: white !important; }
+      .print-shadow-none { box-shadow: none !important; border: 1px solid #ccc; }
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen">
+
+  <div class="max-w-6xl mx-auto px-4 py-8">
+    
+    <header class="bg-white rounded-2xl shadow-sm p-6 mb-6 border border-slate-200 text-center md:text-left md:flex justify-between items-center">
+      <div>
+        <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-2 justify-center md:justify-start">
+          <i data-lucide="award" class="text-blue-600"></i> Sistema de Consulta de Notas & Boletim
+        </h1>
+        <p class="text-sm text-slate-500 mt-1">Consolidação automática por disciplina, módulo e histórico do estudante.</p>
+      </div>
+      
+      <div class="mt-4 md:mt-0 text-right">
+        <div id="status-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+          <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+          <span id="status-texto">Carregando disciplinas...</span>
+        </div>
+        <p id="total-planilhas" class="text-[11px] text-slate-400 mt-1">0 matérias sincronizadas</p>
+      </div>
+    </header>
+
+    <section class="bg-white rounded-2xl shadow-sm p-6 mb-6 border border-slate-200 no-print">
+      <label for="campo-busca" class="block text-sm font-semibold text-slate-700 mb-2">
+        Informe seu CPF ou E-mail cadastrado no formulário:
+      </label>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <div class="relative flex-1">
+          <i data-lucide="user-check" class="absolute left-3 top-3 text-slate-400 w-5 h-5"></i>
+          <input 
+            type="text" 
+            id="campo-busca" 
+            placeholder="Digite seu CPF (com ou sem pontuação) ou seu E-mail..."
+            class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-sm"
+          />
+        </div>
+        <button 
+          onclick="consultarBoletim()" 
+          class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-sm"
+        >
+          <i data-lucide="search" class="w-4 h-4"></i> Consultar Boletim
+        </button>
+      </div>
+      <p class="text-xs text-slate-400 mt-2">
+        * Para formulários anteriores utilize o <strong>E-mail</strong>; para os formulários recentes pode utilizar o <strong>CPF</strong>.
+      </p>
+    </section>
+
+    <main id="area-resultados" class="hidden space-y-6">
+
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
+          <div>
+            <span class="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md">Boletim Escolar Oficial</span>
+            <h2 id="nome-aluno-display" class="text-xl font-bold text-slate-800 mt-1">Nome do Aluno</h2>
+            <p id="identificador-display" class="text-xs text-slate-500 mt-0.5">Identificador: -</p>
+          </div>
+          <button 
+            onclick="window.print()" 
+            class="no-print border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition"
+          >
+            <i data-lucide="printer" class="w-4 h-4"></i> Imprimir Boletim
+          </button>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
+            <span class="text-xs text-slate-500 font-medium">Matérias Realizadas</span>
+            <p id="total-materias" class="text-lg font-bold text-slate-800 mt-0.5">0</p>
+          </div>
+          <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-center">
+            <span class="text-xs text-emerald-600 font-medium">Suficientes</span>
+            <p id="total-suficientes" class="text-lg font-bold text-emerald-700 mt-0.5">0</p>
+          </div>
+          <div class="bg-rose-50 p-4 rounded-xl border border-rose-100 text-center">
+            <span class="text-xs text-rose-600 font-medium">Insuficientes</span>
+            <p id="total-insuficientes" class="text-lg font-bold text-rose-700 mt-0.5">0</p>
+          </div>
+          <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
+            <span class="text-xs text-blue-600 font-medium">Aproveitamento Médio</span>
+            <p id="media-geral" class="text-lg font-bold text-blue-800 mt-0.5">0%</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden print-shadow-none">
+        <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+          <h3 class="font-bold text-slate-700 text-sm flex items-center gap-2">
+            <i data-lucide="book-open" class="w-4 h-4 text-blue-600"></i> Desempenho por Disciplina / Formulário
+          </h3>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-sm">
+            <thead>
+              <tr class="bg-slate-100/75 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
+                <th class="py-3.5 px-4">Disciplina / Avaliação</th>
+                <th class="py-3.5 px-4">Data do Envio</th>
+                <th class="py-3.5 px-4">Pontuação (Score)</th>
+                <th class="py-3.5 px-4 text-center">Conceito</th>
+                <th class="py-3.5 px-4 text-right no-print">Auditoria</th>
+              </tr>
+            </thead>
+            <tbody id="tabela-boletim-corpo" class="divide-y divide-slate-200">
+              </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div id="secao-auditoria" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2 text-indigo-700">
+            <i data-lucide="file-check-2" class="w-4 h-4"></i> Espelho da Avaliação Selecionada
+          </h3>
+          <span id="auditoria-materia-tag" class="text-xs bg-indigo-50 text-indigo-700 font-semibold px-2.5 py-1 rounded-md"></span>
+        </div>
+        <div id="conteudo-auditoria" class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-2 max-h-96 overflow-y-auto">
+          </div>
+      </div>
+
+    </main>
+
+    <div id="alerta-nao-encontrado" class="hidden bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 text-center text-sm">
+      Nenhuma avaliação localizada com o CPF ou E-mail informado.
+    </div>
+
+  </div>
+
+  <script>
+    // =========================================================================
+    // CONFIGURAÇÃO DOS ARQUIVOS DE FORMULÁRIO (MATÉRIAS)
+    // Basta adicionar os nomes dos arquivos .csv aqui conforme as matérias forem criadas.
+    // O nome do arquivo (sem extensão) será formatado automaticamente como o Nome da Disciplina.
+    // =========================================================================
+    const ARQUIVOS_FORMULARIOS = [
+      'Legislacao_de_Transito.csv',
+      'Direito_Administrativo.csv',
+      'Direcao_Defensiva.csv',
+      'Primeiros_Socorros.csv',
+      'Mecanica_Basica.csv'
+    ];
+
+    const NOTA_DE_CORTE_PORCENTAGEM = 60; // 60% para Suficiente
+
+    let baseGeralDisciplinas = []; // Armazena todos os registros agrupados com a disciplina de origem
+
+    window.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+      carregarTodasAsPlanilhas();
+
+      document.getElementById('campo-busca').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') consultarBoletim();
+      });
+    });
+
+    // Formata o nome do arquivo para um título limpo de Matéria
+    function formatarNomeMateria(nomeArquivo) {
+      return nomeArquivo
+        .replace(/\.csv$/i, '')
+        .replace(/[_-]/g, ' ')
+        .replace(/\b\w/g, l => l.toUpperCase());
+    }
+
+    // Carrega todos os CSVs em paralelo
+    async function carregarTodasAsPlanilhas() {
+      baseGeralDisciplinas = [];
+      let carregadosComSucesso = 0;
+
+      const promessas = ARQUIVOS_FORMULARIOS.map(arquivo => {
+        return new Promise((resolve) => {
+          Papa.parse(arquivo, {
+            download: true,
+            header: true,
+            skipEmptyLines: true,
+            complete: (results) => {
+              if (results.data && results.data.length > 0) {
+                const materiaNome = formatarNomeMateria(arquivo);
+                // Vincula o nome da matéria a cada linha
+                results.data.forEach(linha => {
+                  baseGeralDisciplinas.push({
+                    ...linha,
+                    __materiaOrigem: materiaNome,
+                    __arquivoOrigem: arquivo
+                  });
+                });
+                carregadosComSucesso++;
+              }
+              resolve();
+            },
+            error: () => {
+              // Caso o arquivo ainda não exista na pasta, apenas ignora silenciosamente
+              resolve();
+            }
+          });
+        });
+      });
+
+      await Promise.all(promessas);
+
+      const statusBadge = document.getElementById('status-badge');
+      const statusTexto = document.getElementById('status-texto');
+      const totalPlanilhas = document.getElementById('total-planilhas');
+
+      if (carregadosComSucesso > 0) {
+        statusBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800';
+        statusBadge.querySelector('span').className = 'w-2 h-2 rounded-full bg-emerald-500';
+        statusTexto.innerText = 'Base Sincronizada';
+        totalPlanilhas.innerText = `${carregadosComSucesso} matéria(s) ativa(s)`;
+      } else {
+        statusBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800';
+        statusBadge.querySelector('span').className = 'w-2 h-2 rounded-full bg-rose-500';
+        statusTexto.innerText = 'Nenhuma planilha encontrada';
+        totalPlanilhas.innerText = 'Verifique os arquivos .csv';
+      }
+    }
+
+    // Normaliza strings removendo pontos, traços e espaços (ideal para CPF)
+    function normalizarIdentificador(str) {
+      return String(str || '').toLowerCase().replace(/[.\-\s\/]/g, '');
+    }
+
+    function consultarBoletim() {
+      const termoRaw = document.getElementById('campo-busca').value.trim();
+      if (!termoRaw) return;
+
+      const termoBuscaNormalizado = normalizarIdentificador(termoRaw);
+      const termoBuscaLower = termoRaw.toLowerCase();
+
+      // Busca flexível: confere CPF (sem pontuação) OU e-mail/nome em qualquer coluna relevante
+      const registrosAluno = baseGeralDisciplinas.filter(linha => {
+        return Object.entries(linha).some(([coluna, valor]) => {
+          if (coluna.startsWith('__')) return false;
+          const valorLimpo = normalizarIdentificador(valor);
+          const valorLower = String(valor).toLowerCase();
+
+          // Match de CPF
+          if (termoBuscaNormalizado.length >= 7 && valorLimpo.includes(termoBuscaNormalizado)) {
+            return true;
+          }
+          // Match de E-mail ou Nome
+          if (valorLower.includes(termoBuscaLower)) {
+            return true;
+          }
+          return false;
+        });
+      });
+
+      const areaResultados = document.getElementById('area-resultados');
+      const alertaNaoEncontrado = document.getElementById('alerta-nao-encontrado');
+
+      if (registrosAluno.length === 0) {
+        areaResultados.classList.add('hidden');
+        alertaNaoEncontrado.classList.remove('hidden');
+        return;
+      }
+
+      alertaNaoEncontrado.classList.add('hidden');
+      renderizarBoletim(registrosAluno, termoRaw);
+      areaResultados.classList.remove('hidden');
+    }
+
+    function renderizarBoletim(registros, termoOriginal) {
+      const tabelaCorpo = document.getElementById('tabela-boletim-corpo');
+      tabelaCorpo.innerHTML = '';
+
+      let totalSuf = 0;
+      let totalInsuf = 0;
+      let somaPorcentagem = 0;
+      let nomeEncontrado = '';
+
+      // Ordenar pelas mais recentes (se houver timestamp)
+      registros.forEach((reg) => {
+        const chaves = Object.keys(reg);
+        
+        // Identifica Nome
+        if (!nomeEncontrado) {
+          const colNome = chaves.find(k => /nome/i.test(k));
+          if (colNome && reg[colNome]) nomeEncontrado = reg[colNome];
+        }
+
+        // Identifica Pontuação
+        const colScore = chaves.find(k => /pontua|score|nota/i.test(k)) || 'Pontuação';
+        const rawScore = reg[colScore] || '0';
+
+        let notaObtida = 0;
+        let notaTotal = 100;
+
+        if (String(rawScore).includes('/')) {
+          const partes = rawScore.split('/');
+          notaObtida = parseFloat(partes[0].trim().replace(',', '.')) || 0;
+          notaTotal = parseFloat(partes[1].trim().replace(',', '.')) || 100;
+        } else {
+          notaObtida = parseFloat(String(rawScore).replace(',', '.')) || 0;
+          notaTotal = notaObtida <= 10 ? 10 : 100;
+        }
+
+        const aproveitamento = (notaObtida / notaTotal) * 100;
+        const ehSuficiente = aproveitamento >= NOTA_DE_CORTE_PORCENTAGEM;
+
+        if (ehSuficiente) totalSuf++;
+        else totalInsuf++;
+
+        somaPorcentagem += aproveitamento;
+
+        // Identifica Data
+        const colData = chaves.find(k => /carimbo|timestamp|data/i.test(k));
+        const dataEnvio = (colData && reg[colData]) ? reg[colData] : 'N/D';
+
+        // Render da linha
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 transition text-slate-700';
+        tr.innerHTML = `
+          <td class="py-3.5 px-4 font-bold text-slate-800 flex items-center gap-2">
+            <span class="w-1.5 h-4 bg-blue-600 rounded-full"></span>
+            ${reg.__materiaOrigem}
+          </td>
+          <td class="py-3.5 px-4 text-slate-500">${dataEnvio}</td>
+          <td class="py-3.5 px-4 font-bold text-slate-900">${rawScore}</td>
+          <td class="py-3.5 px-4 text-center">
+            ${
+              ehSuficiente
+                ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">Suficiente</span>'
+                : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800">Insuficiente</span>'
+            }
+          </td>
+          <td class="py-3.5 px-4 text-right no-print">
+            <button onclick='auditarRegistro(${JSON.stringify(reg)})' class="text-xs text-blue-600 hover:text-blue-800 font-semibold underline">
+              Espelho
+            </button>
+          </td>
+        `;
+        tabelaCorpo.appendChild(tr);
+      });
+
+      // Atualiza Cards
+      document.getElementById('nome-aluno-display').innerText = nomeEncontrado || 'Estudante';
+      document.getElementById('identificador-display').innerText = `Documento / Registro consultado: ${termoOriginal}`;
+      document.getElementById('total-materias').innerText = registros.length;
+      document.getElementById('total-suficientes').innerText = totalSuf;
+      document.getElementById('total-insuficientes').innerText = totalInsuf;
+
+      const mediaFinal = registros.length > 0 ? (somaPorcentagem / registros.length).toFixed(1) : 0;
+      document.getElementById('media-geral').innerText = `${mediaFinal}%`;
+
+      lucide.createIcons();
+    }
+
+    function auditarRegistro(registro) {
+      const secao = document.getElementById('secao-auditoria');
+      const tagMateria = document.getElementById('auditoria-materia-tag');
+      const container = document.getElementById('conteudo-auditoria');
+
+      tagMateria.innerText = registro.__materiaOrigem;
+      container.innerHTML = '';
+
+      Object.entries(registro).forEach(([chave, valor]) => {
+        if (chave.startsWith('__')) return; // ignora metadados internos
+        const item = document.createElement('div');
+        item.className = 'border-b border-slate-200 pb-2';
+        item.innerHTML = `
+          <div class="font-bold text-slate-700 mb-0.5">${chave}</div>
+          <div class="text-slate-600 bg-white p-2 rounded border border-slate-200">${valor || '<i class="text-slate-400">Sem resposta</i>'}</div>
+        `;
+        container.appendChild(item);
+      });
+
+      secao.classList.remove('hidden');
+      secao.scrollIntoView({ behavior: 'smooth' });
+    }
+  </script>
+</body>
+</html>
