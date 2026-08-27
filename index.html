@@ -3,76 +3,118 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Portal do Aluno - Boletim & Auditoria Multidisciplinar</title>
+  <title>Portal do Aluno - SESI SENAI Ribas do Rio Pardo</title>
 
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            senai: {
+              primary: '#0054A6',   // Azul SENAI
+              dark: '#003366',      // Azul Escuro Institucional
+              light: '#EBF3FA',     // Azul Claro de Fundo
+              accent: '#0072CE'     // Azul de Destaque
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- PapaParse para carregar os CSVs -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+  <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
 
   <style>
     @media print {
       .no-print { display: none !important; }
-      body { background: white !important; }
-      .print-shadow-none { box-shadow: none !important; border: 1px solid #ccc; }
+      body { background: white !important; padding: 0 !important; }
+      .print-border { border: 1px solid #cbd5e1 !important; box-shadow: none !important; }
     }
   </style>
 </head>
 <body class="bg-slate-100 text-slate-800 min-h-screen">
 
-  <div class="max-w-6xl mx-auto px-4 py-8">
+  <div class="max-w-5xl mx-auto px-4 py-8">
     
-    <header class="bg-white rounded-2xl shadow-sm p-6 mb-6 border border-slate-200 text-center md:text-left md:flex justify-between items-center">
-      <div>
-        <h1 class="text-2xl font-bold text-slate-800 flex items-center gap-2 justify-center md:justify-start">
-          <i data-lucide="award" class="text-blue-600"></i> Sistema de Consulta de Notas & Boletim
-        </h1>
-        <p class="text-sm text-slate-500 mt-1">Consolidação automática por disciplina, módulo e histórico do estudante.</p>
-      </div>
-      
-      <div class="mt-4 md:mt-0 text-right">
-        <div id="status-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
-          <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-          <span id="status-texto">Carregando disciplinas...</span>
+    <!-- Cabeçalho Principal da Aplicação -->
+    <header class="bg-white rounded-2xl shadow-sm p-6 mb-6 border-t-4 border-senai-primary border-x border-b border-slate-200">
+      <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+        <div>
+          <div class="flex items-center gap-2 text-senai-primary font-black tracking-wider text-xl uppercase">
+            <i data-lucide="award" class="w-7 h-7 text-senai-primary"></i>
+            <span>SESI SENAI</span>
+          </div>
+          <p class="text-xs font-semibold text-slate-500 uppercase tracking-wide mt-0.5">
+            Centro Integrado SESI SENAI - Ribas do Rio Pardo
+          </p>
+          <h1 class="text-lg font-bold text-slate-800 mt-1">Portal de Consulta de Notas e Boletim Escolar</h1>
         </div>
-        <p id="total-planilhas" class="text-[11px] text-slate-400 mt-1">0 matérias sincronizadas</p>
+
+        <!-- Status de Conexão com as Planilhas -->
+        <div class="text-center md:text-right no-print">
+          <div id="status-badge" class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
+            <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+            <span id="status-texto">Carregando planilhas...</span>
+          </div>
+          <p id="total-planilhas" class="text-[11px] text-slate-400 mt-1">Sincronizando base...</p>
+        </div>
       </div>
     </header>
 
+    <!-- Caixa de Pesquisa do Aluno -->
     <section class="bg-white rounded-2xl shadow-sm p-6 mb-6 border border-slate-200 no-print">
       <label for="campo-busca" class="block text-sm font-semibold text-slate-700 mb-2">
-        Informe seu CPF ou E-mail cadastrado no formulário:
+        Identificação do Aluno:
       </label>
       <div class="flex flex-col sm:flex-row gap-3">
         <div class="relative flex-1">
-          <i data-lucide="user-check" class="absolute left-3 top-3 text-slate-400 w-5 h-5"></i>
+          <i data-lucide="user-check" class="absolute left-3.5 top-3 text-slate-400 w-5 h-5"></i>
           <input 
             type="text" 
             id="campo-busca" 
-            placeholder="Digite seu CPF (com ou sem pontuação) ou seu E-mail..."
-            class="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white text-sm"
+            placeholder="Digite o CPF (com ou sem 0 inicial / pontuação) ou seu E-mail..."
+            class="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-senai-primary focus:bg-white text-sm"
           />
         </div>
         <button 
           onclick="consultarBoletim()" 
-          class="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-2.5 rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-sm"
+          class="bg-senai-primary hover:bg-senai-dark text-white font-semibold px-6 py-2.5 rounded-xl transition flex items-center justify-center gap-2 text-sm shadow-sm"
         >
           <i data-lucide="search" class="w-4 h-4"></i> Consultar Boletim
         </button>
       </div>
       <p class="text-xs text-slate-400 mt-2">
-        * Para formulários anteriores utilize o <strong>E-mail</strong>; para os formulários recentes pode utilizar o <strong>CPF</strong>.
+        * Digite seu <strong>CPF</strong> completo ou seu <strong>E-mail</strong> para consolidar o histórico de todas as matérias.
       </p>
     </section>
 
+    <!-- Área de Resultados / Boletim Oficial -->
     <main id="area-resultados" class="hidden space-y-6">
 
-      <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
-        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-100 pb-4">
+      <!-- Ficha de Identificação Escolar -->
+      <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 print-border">
+        
+        <!-- Cabeçalho do Documento do Aluno -->
+        <div class="flex flex-col sm:flex-row justify-between items-start gap-4 border-b border-slate-200 pb-5">
           <div>
-            <span class="text-xs font-bold uppercase tracking-wider text-blue-600 bg-blue-50 px-2.5 py-1 rounded-md">Boletim Escolar Oficial</span>
-            <h2 id="nome-aluno-display" class="text-xl font-bold text-slate-800 mt-1">Nome do Aluno</h2>
-            <p id="identificador-display" class="text-xs text-slate-500 mt-0.5">Identificador: -</p>
+            <span class="text-[11px] font-bold uppercase tracking-wider text-senai-primary bg-senai-light px-2.5 py-1 rounded-md">
+              Boletim Escolar Oficial
+            </span>
+            <h2 id="nome-aluno-display" class="text-2xl font-black text-slate-900 mt-2">Nome do Aluno</h2>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 mt-3 text-xs text-slate-600">
+              <p><strong class="text-slate-800">Unidade:</strong> Centro Integrado SESI SENAI - Ribas do Rio Pardo</p>
+              <p><strong class="text-slate-800">Docente / Instrutor:</strong> Prof. Stepherson Fontoura</p>
+              <p><strong class="text-slate-800">Curso:</strong> <span id="curso-display" class="font-semibold text-senai-primary">Formação Profissional</span></p>
+              <p><strong class="text-slate-800">Documento / Registro:</strong> <span id="identificador-display">-</span></p>
+            </div>
           </div>
+
           <button 
             onclick="window.print()" 
             class="no-print border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-xl text-xs font-semibold flex items-center gap-2 transition"
@@ -81,73 +123,78 @@
           </button>
         </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
-          <div class="bg-slate-50 p-4 rounded-xl border border-slate-100 text-center">
-            <span class="text-xs text-slate-500 font-medium">Matérias Realizadas</span>
-            <p id="total-materias" class="text-lg font-bold text-slate-800 mt-0.5">0</p>
+        <!-- Indicadores de Desempenho Geral -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-5">
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-center">
+            <span class="text-xs text-slate-500 font-medium">Avaliações Feitas</span>
+            <p id="total-materias" class="text-xl font-bold text-slate-800 mt-0.5">0</p>
           </div>
-          <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-100 text-center">
-            <span class="text-xs text-emerald-600 font-medium">Suficientes</span>
-            <p id="total-suficientes" class="text-lg font-bold text-emerald-700 mt-0.5">0</p>
+          <div class="bg-emerald-50 p-4 rounded-xl border border-emerald-200 text-center">
+            <span class="text-xs text-emerald-700 font-medium">Suficientes</span>
+            <p id="total-suficientes" class="text-xl font-bold text-emerald-800 mt-0.5">0</p>
           </div>
-          <div class="bg-rose-50 p-4 rounded-xl border border-rose-100 text-center">
-            <span class="text-xs text-rose-600 font-medium">Insuficientes</span>
-            <p id="total-insuficientes" class="text-lg font-bold text-rose-700 mt-0.5">0</p>
+          <div class="bg-rose-50 p-4 rounded-xl border border-rose-200 text-center">
+            <span class="text-xs text-rose-700 font-medium">Insuficientes</span>
+            <p id="total-insuficientes" class="text-xl font-bold text-rose-800 mt-0.5">0</p>
           </div>
-          <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
-            <span class="text-xs text-blue-600 font-medium">Aproveitamento Médio</span>
-            <p id="media-geral" class="text-lg font-bold text-blue-800 mt-0.5">0%</p>
+          <div class="bg-senai-light p-4 rounded-xl border border-blue-200 text-center">
+            <span class="text-xs text-senai-primary font-semibold">Média Geral</span>
+            <p id="media-geral" class="text-xl font-black text-senai-dark mt-0.5">0%</p>
           </div>
         </div>
       </div>
 
-      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden print-shadow-none">
+      <!-- Tabela / Grid das Matérias -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden print-border">
         <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-          <h3 class="font-bold text-slate-700 text-sm flex items-center gap-2">
-            <i data-lucide="book-open" class="w-4 h-4 text-blue-600"></i> Desempenho por Disciplina / Formulário
+          <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+            <i data-lucide="list-checks" class="w-4 h-4 text-senai-primary"></i> Disciplinas e Avaliações Realizadas
           </h3>
         </div>
         <div class="overflow-x-auto">
           <table class="w-full text-left border-collapse text-sm">
             <thead>
-              <tr class="bg-slate-100/75 text-slate-600 text-xs uppercase font-semibold border-b border-slate-200">
-                <th class="py-3.5 px-4">Disciplina / Avaliação</th>
-                <th class="py-3.5 px-4">Data do Envio</th>
-                <th class="py-3.5 px-4">Pontuação (Score)</th>
-                <th class="py-3.5 px-4 text-center">Conceito</th>
-                <th class="py-3.5 px-4 text-right no-print">Auditoria</th>
+              <tr class="bg-slate-100 text-slate-700 text-xs uppercase font-semibold border-b border-slate-200">
+                <th class="py-3 px-4">Disciplina / Avaliação</th>
+                <th class="py-3 px-4">Data do Envio</th>
+                <th class="py-3 px-4">Pontuação Obtida (Score)</th>
+                <th class="py-3 px-4 text-center">Conceito</th>
+                <th class="py-3 px-4 text-right no-print">Auditoria</th>
               </tr>
             </thead>
             <tbody id="tabela-boletim-corpo" class="divide-y divide-slate-200">
-              </tbody>
+              <!-- Inserido dinamicamente -->
+            </tbody>
           </table>
         </div>
       </div>
 
-      <div id="secao-auditoria" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+      <!-- Seção de Auditoria e Espelho da Avaliação -->
+      <div id="secao-auditoria" class="hidden bg-white rounded-2xl shadow-sm border border-slate-200 p-6 no-print">
         <div class="flex justify-between items-center mb-4">
-          <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2 text-indigo-700">
-            <i data-lucide="file-check-2" class="w-4 h-4"></i> Espelho da Avaliação Selecionada
+          <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2 text-senai-primary">
+            <i data-lucide="file-text" class="w-4 h-4"></i> Espelho Completo de Auditoria
           </h3>
-          <span id="auditoria-materia-tag" class="text-xs bg-indigo-50 text-indigo-700 font-semibold px-2.5 py-1 rounded-md"></span>
+          <span id="auditoria-materia-tag" class="text-xs bg-senai-light text-senai-dark font-semibold px-2.5 py-1 rounded-md"></span>
         </div>
-        <div id="conteudo-auditoria" class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-2 max-h-96 overflow-y-auto">
-          </div>
+        <div id="conteudo-auditoria" class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs space-y-3 max-h-96 overflow-y-auto">
+          <!-- Questões detalhadas -->
+        </div>
       </div>
 
     </main>
 
+    <!-- Alerta de Não Encontrado -->
     <div id="alerta-nao-encontrado" class="hidden bg-amber-50 border border-amber-200 text-amber-800 rounded-xl p-4 text-center text-sm">
-      Nenhuma avaliação localizada com o CPF ou E-mail informado.
+      Nenhum registro localizado para o CPF ou E-mail digitado. Verifique os dados e tente novamente.
     </div>
 
   </div>
 
   <script>
     // =========================================================================
-    // CONFIGURAÇÃO DOS ARQUIVOS DE FORMULÁRIO (MATÉRIAS)
-    // Basta adicionar os nomes dos arquivos .csv aqui conforme as matérias forem criadas.
-    // O nome do arquivo (sem extensão) será formatado automaticamente como o Nome da Disciplina.
+    // LISTA DE PLANILHAS (CSV) DO PROJETO
+    // Insira aqui os nomes dos arquivos .csv salvos na pasta raiz do repositório.
     // =========================================================================
     const ARQUIVOS_FORMULARIOS = [
       'Respostas - SENAI - Avaliação_ Processos de Distribuição e Transporte - Form Responses 1.csv',
@@ -159,7 +206,7 @@
 
     const NOTA_DE_CORTE_PORCENTAGEM = 60; // 60% para Suficiente
 
-    let baseGeralDisciplinas = []; // Armazena todos os registros agrupados com a disciplina de origem
+    let baseGeralDisciplinas = [];
 
     window.addEventListener('DOMContentLoaded', () => {
       lucide.createIcons();
@@ -170,7 +217,7 @@
       });
     });
 
-    // Formata o nome do arquivo para um título limpo de Matéria
+    // Formata o nome do arquivo para um título legível
     function formatarNomeMateria(nomeArquivo) {
       return nomeArquivo
         .replace(/\.csv$/i, '')
@@ -178,7 +225,7 @@
         .replace(/\b\w/g, l => l.toUpperCase());
     }
 
-    // Carrega todos os CSVs em paralelo
+    // Carrega e consolida os CSVs em paralelo
     async function carregarTodasAsPlanilhas() {
       baseGeralDisciplinas = [];
       let carregadosComSucesso = 0;
@@ -192,7 +239,6 @@
             complete: (results) => {
               if (results.data && results.data.length > 0) {
                 const materiaNome = formatarNomeMateria(arquivo);
-                // Vincula o nome da matéria a cada linha
                 results.data.forEach(linha => {
                   baseGeralDisciplinas.push({
                     ...linha,
@@ -204,10 +250,7 @@
               }
               resolve();
             },
-            error: () => {
-              // Caso o arquivo ainda não exista na pasta, apenas ignora silenciosamente
-              resolve();
-            }
+            error: () => resolve()
           });
         });
       });
@@ -227,37 +270,44 @@
         statusBadge.className = 'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800';
         statusBadge.querySelector('span').className = 'w-2 h-2 rounded-full bg-rose-500';
         statusTexto.innerText = 'Nenhuma planilha encontrada';
-        totalPlanilhas.innerText = 'Verifique os arquivos .csv';
+        totalPlanilhas.innerText = 'Verifique os nomes dos arquivos .csv';
       }
     }
 
-    // Normaliza strings removendo pontos, traços e espaços (ideal para CPF)
+    // Normaliza strings removendo pontos, traços, barras e espaços
     function normalizarIdentificador(str) {
-      return String(str || '').toLowerCase().replace(/[.\-\s\/]/g, '');
+      return String(str || '').toLowerCase().replace(/[.\-\s\/]/g, '').trim();
     }
 
     function consultarBoletim() {
       const termoRaw = document.getElementById('campo-busca').value.trim();
       if (!termoRaw) return;
 
-      const termoBuscaNormalizado = normalizarIdentificador(termoRaw);
+      const termoNormalizado = normalizarIdentificador(termoRaw);
+      const termoSemZero = termoNormalizado.replace(/^0+/, ''); // Remove zeros à esquerda para casar perfeitamente
       const termoBuscaLower = termoRaw.toLowerCase();
 
-      // Busca flexível: confere CPF (sem pontuação) OU e-mail/nome em qualquer coluna relevante
+      // Filtro flexível para CPF com/sem 0, com/sem pontuação, ou E-mail/Nome
       const registrosAluno = baseGeralDisciplinas.filter(linha => {
         return Object.entries(linha).some(([coluna, valor]) => {
           if (coluna.startsWith('__')) return false;
-          const valorLimpo = normalizarIdentificador(valor);
-          const valorLower = String(valor).toLowerCase();
 
-          // Match de CPF
-          if (termoBuscaNormalizado.length >= 7 && valorLimpo.includes(termoBuscaNormalizado)) {
-            return true;
+          const valorOriginal = String(valor || '').trim();
+          const valorNormalizado = normalizarIdentificador(valorOriginal);
+          const valorSemZero = valorNormalizado.replace(/^0+/, '');
+          const valorLower = valorOriginal.toLowerCase();
+
+          // 1. Busca por CPF (se contiver dígitos numéricos)
+          if (/^\d+$/.test(termoNormalizado) && termoNormalizado.length >= 6) {
+            if (valorSemZero === termoSemZero) return true;
+            if (valorNormalizado.includes(termoNormalizado)) return true;
           }
-          // Match de E-mail ou Nome
+
+          // 2. Busca por E-mail ou Nome
           if (valorLower.includes(termoBuscaLower)) {
             return true;
           }
+
           return false;
         });
       });
@@ -284,15 +334,21 @@
       let totalInsuf = 0;
       let somaPorcentagem = 0;
       let nomeEncontrado = '';
+      let cursoEncontrado = '';
 
-      // Ordenar pelas mais recentes (se houver timestamp)
       registros.forEach((reg) => {
         const chaves = Object.keys(reg);
         
-        // Identifica Nome
+        // Identifica Nome do Aluno
         if (!nomeEncontrado) {
           const colNome = chaves.find(k => /nome/i.test(k));
           if (colNome && reg[colNome]) nomeEncontrado = reg[colNome];
+        }
+
+        // Identifica Curso (se houver coluna específica)
+        if (!cursoEncontrado) {
+          const colCurso = chaves.find(k => /curso|turma|m[oó]dulo/i.test(k));
+          if (colCurso && reg[colCurso]) cursoEncontrado = reg[colCurso];
         }
 
         // Identifica Pontuação
@@ -327,21 +383,21 @@
         const tr = document.createElement('tr');
         tr.className = 'hover:bg-slate-50 transition text-slate-700';
         tr.innerHTML = `
-          <td class="py-3.5 px-4 font-bold text-slate-800 flex items-center gap-2">
-            <span class="w-1.5 h-4 bg-blue-600 rounded-full"></span>
+          <td class="py-3 px-4 font-bold text-slate-900 flex items-center gap-2">
+            <span class="w-1.5 h-4 bg-senai-primary rounded-full"></span>
             ${reg.__materiaOrigem}
           </td>
-          <td class="py-3.5 px-4 text-slate-500">${dataEnvio}</td>
-          <td class="py-3.5 px-4 font-bold text-slate-900">${rawScore}</td>
-          <td class="py-3.5 px-4 text-center">
+          <td class="py-3 px-4 text-slate-500">${dataEnvio}</td>
+          <td class="py-3 px-4 font-bold text-slate-900">${rawScore}</td>
+          <td class="py-3 px-4 text-center">
             ${
               ehSuficiente
                 ? '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">Suficiente</span>'
                 : '<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-100 text-rose-800">Insuficiente</span>'
             }
           </td>
-          <td class="py-3.5 px-4 text-right no-print">
-            <button onclick='auditarRegistro(${JSON.stringify(reg)})' class="text-xs text-blue-600 hover:text-blue-800 font-semibold underline">
+          <td class="py-3 px-4 text-right no-print">
+            <button onclick='auditarRegistro(${JSON.stringify(reg)})' class="text-xs text-senai-primary hover:text-senai-dark font-semibold underline">
               Espelho
             </button>
           </td>
@@ -349,9 +405,14 @@
         tabelaCorpo.appendChild(tr);
       });
 
-      // Atualiza Cards
+      // Atualiza Cabeçalho do Aluno
       document.getElementById('nome-aluno-display').innerText = nomeEncontrado || 'Estudante';
-      document.getElementById('identificador-display').innerText = `Documento / Registro consultado: ${termoOriginal}`;
+      document.getElementById('identificador-display').innerText = termoOriginal;
+      if (cursoEncontrado) {
+        document.getElementById('curso-display').innerText = cursoEncontrado;
+      }
+
+      // Atualiza Indicadores
       document.getElementById('total-materias').innerText = registros.length;
       document.getElementById('total-suficientes').innerText = totalSuf;
       document.getElementById('total-insuficientes').innerText = totalInsuf;
@@ -371,7 +432,7 @@
       container.innerHTML = '';
 
       Object.entries(registro).forEach(([chave, valor]) => {
-        if (chave.startsWith('__')) return; // ignora metadados internos
+        if (chave.startsWith('__')) return;
         const item = document.createElement('div');
         item.className = 'border-b border-slate-200 pb-2';
         item.innerHTML = `
