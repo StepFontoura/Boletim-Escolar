@@ -155,7 +155,7 @@
       'UC1 - 03 - Produção.csv',
       'UC1 - 04 - Distribuição.csv',
       'UC1 - 06 - Estudo de Caso.csv',
-      'UC1 - 07 - Prova Final UC1.csv'
+      'UC1 - 07 - Prova Final UC1.csv',
     ];
 
     const NOTA_DE_CORTE_NOTA = 6.0; // Média mínima 6.0 (em escala 0 a 10)
@@ -180,40 +180,42 @@
     }
 
     // Carregamento otimizado com cache buster e URI encoded
+    // Carregamento direto, seguro e sem travas de Web Worker
     async function carregarTodasAsPlanilhas() {
       baseGeralDisciplinas = [];
       let carregadosComSucesso = 0;
       const cacheBuster = `?t=${Date.now()}`;
 
-      const promessas = ARQUIVOS_FORMULARIOS.map(arquivo => {
-        return new Promise((resolve) => {
-          // encodeURI trata os espaços e acentos no endereço HTTP do GitHub Pages
+      const promessas = ARQUIVOS_FORMULARIOS.map(async (arquivo) => {
+        try {
           const urlArquivo = encodeURI(arquivo) + cacheBuster;
+          
+          // 1. Busca o arquivo via fetch nativo do navegador
+          const response = await fetch(urlArquivo);
+          if (!response.ok) return;
 
-          Papa.parse(urlArquivo, {
-            download: true,
+          const csvTexto = await response.text();
+
+          // 2. Faz o parse diretamente da string de texto (sem worker)
+          const results = Papa.parse(csvTexto, {
             header: true,
-            skipEmptyLines: 'greedy',
-            worker: true, // Garante que o navegador não congele durante o parse
-            complete: (results) => {
-              if (results.data && results.data.length > 0) {
-                const materiaNome = formatarNomeMateria(arquivo);
-                results.data.forEach(linha => {
-                  baseGeralDisciplinas.push({
-                    ...linha,
-                    __materiaOrigem: materiaNome,
-                    __arquivoOrigem: arquivo
-                  });
-                });
-                carregadosComSucesso++;
-              }
-              resolve();
-            },
-            error: () => {
-              resolve();
-            }
+            skipEmptyLines: 'greedy'
           });
-        });
+
+          if (results.data && results.data.length > 0) {
+            const materiaNome = formatarNomeMateria(arquivo);
+            results.data.forEach(linha => {
+              baseGeralDisciplinas.push({
+                ...linha,
+                __materiaOrigem: materiaNome,
+                __arquivoOrigem: arquivo
+              });
+            });
+            carregadosComSucesso++;
+          }
+        } catch (erro) {
+          console.error("Erro ao carregar:", arquivo, erro);
+        }
       });
 
       await Promise.all(promessas);
